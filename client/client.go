@@ -9,9 +9,10 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
-	gRPC "github.com/DarkLordOfDeadstiny/DSYS-gRPC-template/proto"
+	// this has to be the same as the go.mod module,
+	// followed by the path to the folder the proto file is in.
+	gRPC "github.com/PatrickMatthiesen/DSYS-gRPC-template/proto"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -31,7 +32,8 @@ func main() {
 	fmt.Println("--- CLIENT APP ---")
 
 	//log to file instead of console
-	//setLog()
+	//f := setLog()
+	//defer f.Close()
 
 	//connect to server and close the connection when program closes
 	fmt.Println("--- join Server ---")
@@ -48,16 +50,14 @@ func ConnectToServer() {
 	//dial options
 	//the server is not using TLS, so we use insecure credentials
 	//(should be fine for local testing but not in the real world)
-	var opts []grpc.DialOption
-	opts = append(opts, grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	opts := []grpc.DialOption {
+		grpc.WithBlock(), 
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
 
-	//use context for timeout on the connection
-	timeContext, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel() //cancel the connection when we are done
-
-	//dial the server to get a connection to it
+	//dial the server, with the flag "server", to get a connection to it
 	log.Printf("client %s: Attempts to dial on port %s\n", *clientsName, *serverPort)
-	conn, err := grpc.DialContext(timeContext, fmt.Sprintf(":%s", *serverPort), opts...)
+	conn, err := grpc.Dial(fmt.Sprintf(":%s", *serverPort), opts...)
 	if err != nil {
 		log.Printf("Fail to Dial : %v", err)
 		return
@@ -155,11 +155,11 @@ func conReady(s gRPC.TemplateClient) bool {
 }
 
 // sets the logger to use a log.txt file instead of the console
-func setLog() {
+func setLog() *os.File {
 	f, err := os.OpenFile("log.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
 	}
-	defer f.Close()
 	log.SetOutput(f)
+	return f
 }

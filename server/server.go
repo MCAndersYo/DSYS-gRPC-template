@@ -9,19 +9,18 @@ import (
 	"net"
 	"os"
 	"sync"
-	"time"
 
 	// this has to be the same as the go.mod module,
 	// followed by the path to the folder the proto file is in.
-	gRPC "github.com/DarkLordOfDeadstiny/DSYS-gRPC-template/proto"
+	gRPC "github.com/PatrickMatthiesen/DSYS-gRPC-template/proto"
 
 	"google.golang.org/grpc"
 )
 
 type Server struct {
 	gRPC.UnimplementedTemplateServer        // You need this line if you have a server
-	name                                    string // Not required but useful if you want to name your server
-	port                                    string // Not required but useful if your server needs to know what port it's listening to
+	name                             string // Not required but useful if you want to name your server
+	port                             string // Not required but useful if your server needs to know what port it's listening to
 
 	incrementValue int64      // value that clients can increment.
 	mutex          sync.Mutex // used to lock the server to avoid race conditions.
@@ -34,19 +33,17 @@ var port = flag.String("port", "5400", "Server port")           // set with "-po
 
 func main() {
 
-	// setLog() //uncomment this line to log to a log.txt file instead of the console
+	// f := setLog() //uncomment this line to log to a log.txt file instead of the console
+	// defer f.Close()
 
 	// This parses the flags and sets the correct/given corresponding values.
 	flag.Parse()
 	fmt.Println(".:server is starting:.")
 
-	// starts a goroutine executing the launchServer method.
-	go launchServer()
+	// launch the server
+	launchServer()
 
-	// This makes sure that the main method is "kept alive"/keeps running
-	for {
-		time.Sleep(time.Second * 5)
-	}
+	// code here is unreachable because launchServer occupies the current thread.
 }
 
 func launchServer() {
@@ -73,7 +70,7 @@ func launchServer() {
 
 	gRPC.RegisterTemplateServer(grpcServer, server) //Registers the server to the gRPC server.
 
-	log.Printf("Server %s: Listening on port %s\n", *serverName, *port)
+	log.Printf("Server %s: Listening at %v\n", *serverName, list.Addr())
 
 	if err := grpcServer.Serve(list); err != nil {
 		log.Fatalf("failed to serve %v", err)
@@ -118,8 +115,22 @@ func (s *Server) SayHi(msgStream gRPC.Template_SayHiServer) error {
 	return nil
 }
 
+// Get preferred outbound ip of this machine
+// Usefull if you have to know which ip you should dial, in a client running on an other computer
+func GetOutboundIP() net.IP {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+
+	return localAddr.IP
+}
+
 // sets the logger to use a log.txt file instead of the console
-func setLog() {
+func setLog() *os.File {
 	// Clears the log.txt file when a new server is started
 	if err := os.Truncate("log.txt", 0); err != nil {
 		log.Printf("Failed to truncate: %v", err)
@@ -130,6 +141,6 @@ func setLog() {
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
 	}
-	defer f.Close()
 	log.SetOutput(f)
+	return f
 }
